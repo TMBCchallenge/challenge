@@ -25,63 +25,128 @@
  * -name
  * -comment
  * -create_date
- *
+ * -level (1,2,3 this could manage a future max of nested replies)
  */
 Class CommentHandler {
+
+    // Maximun levels in nested comments
+    const MAXLEVEL = 2;
+
     /**
-     * getComments
-     *
-     * This function should return a structured array of all comments and replies
-     *
-     * @return array
+     * Gets comments and replies
+     * @param int $parent_id the parent id of the reply
+     * @return array All the comments
      */
-    public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
-        $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
-            }
-            $comment['replies'] = $replies;
-            $comments[] = $comment;
+    public function getComments($parent_id = 0) {
+        // Create connection
+        $db = new  \mysqli('testserver', 'testuser', 'testpassword', 'testdatabase');
+        // Checks connection
+        if ($db->connect_error) {
+            die("Connection failed: " . $db->connect_error);
         }
+
+        // prepare and bind
+        $stmt = $db->prepare("SELECT * FROM comments_table WHERE parent_id = ? ORDER BY create_date DESC;");
+        $stmt->bind_param("i", $parent_id);
+        
+        if (!$stmt->execute()) {
+            die("Execution failed: " . $stmt->error);
+        }
+             
+        if (!($result = $stmt->get_result())) {
+            die("Statements failed: " . $stmt->error);
+        }
+        
+        // close conecction
+        $stmt->close();
+        $db->close();
+        
+        // stores the nested comments
+        $comments = [];
+        while (($comment = $result->fetch_assoc())) {
+            // Get the replies 
+            $replies = $this->getComments($comment['id']);
+            if (!empty($replies)) {
+                $comment['replies'] = $replies;
+            }
+            array_push($comments, $comment);
+        }
+
         return $comments;
     }
 
     /**
-     * addComment
-     *
-     * This function accepts the data directly from the user input of the comment form and creates the comment entry in the database.
-     *
-     * @param $comment
-     * @return string or array
+     * Adds a new comment or reply
+     * @param array $comment
+     * @return array $comment
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
-        if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
-            return $comment;
-        } else {
-            return 'save failed';
+        // default values for a new comment
+        $parent_id = 0;
+        $comment['level'] = 1;
+
+        // Validates the level of the parent id
+        if (!empty($comment['parent_id'])) {
+            $parent_id = $comment['parent_id'];
+            //gets the parent info
+            $parent_comment = $this->getComment($parent_id);
+            // if the level is lower or equal than the permited then
+            if (!empty($parent_comment) && $parent_comment['level'] <= self::MAXLEVEL) {
+                // assigns the new level
+                $comment['level'] = $parent_comment['level'] + 1;
+            } else {
+                // returns an error message
+                return 'Reply not allowed';
+            }
         }
+
+        // Creates connection
+        $db = new \mysqli('testserver', 'testuser', 'testpassword', 'testdatabase');
+        // Checks connection
+        if ($db->connect_error) {
+            die("Connection failed: " . $db->connect_error);
+        }
+        // Prepare and bind
+        $stmt = $db->prepare("INSERT INTO comments_table (parent_id, name, comment, level, create_date) VALUES (?, ?, ?, ?, NOW())");
+        $stmt->bind_param("issi", $parent_id, $comment['name'], $comment['comment'], $comment['level']);
+
+        if (!$stmt->execute()) {
+            die("Insert comment Execution failed: " . $stmt->error);
+        }
+
+        // Gets the comment of the last insert
+        $result = $this->getComment($stmt->insert_id);
+        $stmt->close();
+        $db->close();
+        return $result;
     }
+
+    /**
+     * Get comment by Id 
+     * @param int $id
+     * @return array
+     */
+    public function getComment($id) {
+        $comment = NULL;
+        if (!empty($id)) {
+            $db = new \mysqli('testserver', 'testuser', 'testpassword', 'testdatabase');  
+            // prepare statement
+            $stmt = $db->prepare("SELECT * FROM comments_table where id = ?;");
+            $stmt->bind_param("i", $id);
+
+            if (!$stmt->execute()) {
+                die("Execution failed: " . $stmt->error);
+            }
+
+            if (!($result = $stmt->get_result())) {
+                die("Statements failed: " . $stmt->error);
+            }
+
+            $comment = $result->fetch_assoc();
+            $stmt->close();
+            $db->close();
+        }
+        return $comment;
+    }
+
 }
