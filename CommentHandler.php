@@ -35,31 +35,51 @@ Class CommentHandler {
      *
      * @return array
      */
+    private $db = null;
+
+    public function __construct() {
+        // NOTE:- Using PDO queries to protect against sql injection, enabling error repoting and error exceptions
+        $this->db = new PDO('mysql:host=testserver;dbname=testdb','testuser','testpassword');
+        $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    }
+
     public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
-        $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
-            }
-            $comment['replies'] = $replies;
-            $comments[] = $comment;
+        $sql = "SELECT * FROM comments_table ORDER BY create_date ASC";
+        $statment = $this->db->prepare($sql);
+        $statment->execute();
+
+        $result = $statment->fetchAll(PDO::FETCH_ASSOC);
+        
+        $comments = array();
+        $leftOutItems = array();
+
+        if (count($result) == 0) {
+            return $comments;
         }
-        return $comments;
+
+        foreach($result as $key=>$row) {
+            if ($row['parent_id'] === 0) {
+                $comments[$row['id']] = $row;
+            } else {
+                if (array_key_exists($row['parent_id'], $comments)) {
+                    $comments[$row['parent_id']]['replies'][$row['id']] = $row;
+                } else {
+                    $leftOutItems[$row['parent_id']][] = $row;
+                }
+            }
+        }
+
+        foreach($comments as $comment) {
+            if (isset($comment['replies'])) {
+                foreach($comment['replies'] as $replyId => $reply) {
+                    if (isset($leftOutItems[$replyId])) {
+                        $reply['replies'][] = $leftOutItems[$replyId];
+                    }
+                }
+            }
+        }  
+        
+        return $comments;   
     }
 
     /**
@@ -71,17 +91,38 @@ Class CommentHandler {
      * @return string or array
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
+        $parent_id = self::sanitize_input($comment['parent_id'],'int');
+        $name = self::sanitize_input($comment['name'],'string');
+        $comment = self::sanitize_input($comment['comment'],'string');
+
+        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (:parent_id, :name, :comment, NOW())";
+        $statment = $this->db->prepare($sql);
+        $statment->bindParam(':parent_id',$parent_id);
+        $statment->bindParam(':name',$name);
+        $statment->bindParam(':comment',$comment);
+
+        $result = $statment->execute();
         if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
-            return $comment;
+            $returnComment = array();
+            $returnComment['id'] = $this->db->lastInsertId();
+            $returnComment['parent_id'] = $parent_id;
+            $returnComment['name'] = stripslashes($name);
+            $returnComment['comment'] = stripslashes($comment);
+            return $returnComment;
         } else {
             return 'save failed';
         }
+    }
+
+    public function sanitize_input($input,$dataType) {
+        if ($dataType == 'string') {
+            $input = trim($input);
+            $input = addslashes($input);
+            $input = filter_var($input,FILTER_SANITIZE_STRIPPED);
+        } else if ($dataType == 'int') {
+            $input = filter_var($input, FILTER_SANITIZE_NUMBER_INT);
+        }
+
+        return $input;
     }
 }
