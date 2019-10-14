@@ -41,12 +41,66 @@ class Form {
 
     private validateForm() {
         // Implement me!
+        var rules = [
+          {
+            validator: "required",
+            fields: [ "name" ],
+            message: "Name is required"
+          },
+          {
+            validator: "required",
+            fields: [ "address.street1" ],
+            message: "Street is required"
+          },
+          {
+            validator: "required",
+            fields: [ "address.city" ],
+            message: "City is required"
+          },
+          {
+            validator: "required",
+            fields: [ "address.state" ],
+            message: "State is required"
+          },
+          {
+            validator: "number",
+            fields: [ "address.zip" ],
+            message: "Zip is required"
+          }
+        ];
+         
+        validator = new FormValidator(rules, this.responses);
+        let promiseValidation = validator.validate();
+
+        promiseValidation.then(function success(data){
+            if(data.valid){
+                return true;
+            } else {
+                alert(data.errors);//TODO: display the errors properly
+                return false;
+            }
+        }, function error(data){
+            alert('Sorry, please submit this form at a later time.');
+            return false;
+        });
     }
+
+    var promiseForm = new Promise(function(resolve, reject) {
+        let response = HttpClient.post('https://api.example.com/form/', this.responses);
+        if(response){
+            resolve('Data submitted');
+        } else {
+            reject('No response received');
+        }
+    });
 
     private submitForm() {
         if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+            this.promiseForm.then(function success(data){
+                this.resetForm();
+            }, function error(data){
+                //alert('Sorry, please submit this form at a later time.');
+            });
         }
     }
 
