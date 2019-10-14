@@ -25,7 +25,7 @@ import HttpClient from 'http-lib';
 
 class Form {
     private $validator = new FormValidator();
-    private emptyForm = {
+    private emptyForm = { 
         name: '',
         address: {
             street1: '',
@@ -37,21 +37,58 @@ class Form {
     };
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    // private responses = this.emptyForm;
+
+    //Note:- Convert emptyForm object into JSON string for post request
+    private responses = JSON.stringify(this.emptyForm);
 
     private validateForm() {
-        // Implement me!
+        let validatePromise = $validator.validate();
+
+        validatePromise.then(data => {
+            if (data.errors && data.errors.length) {
+                let errorMessage = '';
+                data.errors.forEach(function(element){
+                    errorMessage += element + "<br>";
+                });
+                alert(errorMessage);
+            }
+            return returnObject.valid;
+        }, (error) => {
+            alert("Sorry, please submit this form at a later time.");
+            return false;
+        });
     }
 
     private submitForm() {
-        if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+        if (this.validateForm() && !checkProperties(this.emptyForm)) {
+            // HttpClient.post('https://api.example.com/form/', this.responses);
+
+            //Note:-  performing post request in jquery
+            $.post('https://api.example.com/form/', this.responses)
+            .success(function(){
+                this.resetForm();
+            });
         }
     }
 
+    private checkProperties(emptyForm) {
+        for (let key in emptyForm) {
+            if (emptyForm[key] !== null && emptyForm[key] != "")
+                return false;
+        }
+        return true;
+    }
+
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        // this.responses = Object.assign({}, this.emptyForm);
+        /** Object.assign({}, this.emptyForm) this would not reset the emptyForm object,
+            because Object.assign() is used to copy all the items from one or more source object to a target object. **/
+
+        //Note:- Reset emptyForm 
+        $.each(this.emptyForm,function(){
+            this.reset();
+        });
     }
 }
 
