@@ -1,4 +1,6 @@
 <?php
+require __DIR__ . "/Models/Comments.php";
+
 /**
  * Instructions:
  *
@@ -27,61 +29,75 @@
  * -create_date
  *
  */
-Class CommentHandler {
+class CommentHandler {
+
     /**
-     * getComments
-     *
-     * This function should return a structured array of all comments and replies
-     *
-     * @return array
+     * @var model instance
      */
-    public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
-        $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
-            }
-            $comment['replies'] = $replies;
-            $comments[] = $comment;
-        }
-        return $comments;
+    protected $comments;
+
+    public function __construct()
+    {
+        $this->comments = new Comments();
     }
 
     /**
-     * addComment
-     *
-     * This function accepts the data directly from the user input of the comment form and creates the comment entry in the database.
-     *
-     * @param $comment
-     * @return string or array
-     */
-    public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
-        if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
-            return $comment;
-        } else {
-            return 'save failed';
+      * @param int $parentId
+      * @return array
+      */
+    public function getComments($parentId = 0)
+    {
+        // comments
+        $comments = array();
+
+        // pull all comments where parent_id = $parent_id
+        $results = $this->comments->getByParentId($parentId);
+
+        foreach($results as $item) {
+            // pull parent id
+            $parentId = $item->id;
+
+            // now we need to pull the replies
+            $replies = $this->comments->getByParentId($parentId);
+
+            // if we have replies we append to our list
+            if ($replies) {
+                $item->replies = $replies;
+            }
+
+            // append to final list
+            $comments[] = $item;
         }
+
+        //print_r($comments);
+        return $comments;
     }
+
+    public function addComment($comment)
+    {
+        // try to insert
+        list($isValid, $messages, $result) = $this->comments->tryInsert($comment);
+
+        if ($isValid) {
+            return $result;
+        }
+
+        return implode(",", $messages);
+    }
+
 }
+
+$commentHandler = new CommentHandler();
+
+$comment = (object)[
+    'parent_id' => 0,
+    'name' => 'Miguel Huerta',
+    'comment' => 'This is my first commnet',
+    'create_date' => date('Y-m-d H:i:s')
+];
+
+//print_r($comment);
+
+//$comment = new Comments();
+//print_r($commentHandler->getComments());
+print_r($commentHandler->addComment($comment));
