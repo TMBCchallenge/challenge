@@ -25,28 +25,94 @@ import HttpClient from 'http-lib';
 
 class Form {
     private $validator = new FormValidator();
-    private emptyForm = {
-        name: '',
-        address: {
-            street1: '',
-            street2: '',
-            city: '',
-            state: '',
-            zip: '',
-        },
-    };
+    private status = false;
+    private emptyForm = null;
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    private responses = null;
 
-    private validateForm() {
-        // Implement me!
+
+    //use constructor to initialize with empty fields on loading the form. this ensure the form is always loads with empty form
+
+    //#3 a reactive form ensures to update the form fields in responsive as the user fills the form,
+    //this makes the reset form not to update the fields correctly
+
+    constructor (name = '', street1 = '', street2 = '', city = '', state = '', zip = '') {
+        this.emptyForm = this.responses = {
+            name: name,
+            address: {
+                street1: street1,
+                street2: street2,
+                city: city,
+                state: state,
+                zip: zip
+            }
+        };
     }
 
-    private submitForm() {
+    private validateForm() {
+        var formRules = [
+            {
+                validator: "required",
+                fields: [ "name" ],
+                message: "Name required"
+            },
+            {
+                validator: "required",
+                fields: [ "address.street1" ],
+                message: "Street address required"
+            },
+            {
+                validator: "required",
+                fields: [ "address.city" ],
+                message: "City required"
+            },
+            {
+                validator: "required",
+                fields: [ "address.state" ],
+                message: "State required"
+            },
+            {
+                validator: "number",
+                fields: [ "address.zip" ],
+                message: "Zipcode required"
+            }
+        ];
+
+        validator = new FormValidator(formRules, this.emptyForm);
+        validator.validate().then(function(result) {
+            if (!result.boolean) {
+                let errors = '';
+                for (i = 0; i < result.errors.length; i++) {
+                    errors += result.errors[i] + "\n";
+                }
+                alert("You Have errors in your input. Please check the errors below: \n" + errors);
+            } else {
+                this.status = true;
+            }
+        }, function(error) {
+            alert("There is some problem in validating the inputs. Please try later.");
+        });
+
+        return this.status;
+    }
+
+    // async always returns a promise
+    // await makes JavaScript wait until that promise settles and returns its result.
+    async submitForm() {
+        var formSubmitted = false;
         if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+            try {
+                let response = await HttpClient.post("https://api.example.com/form/", this.responses);
+                if (response) {
+                    this.resetForm();
+                    formSubmitted = true;
+                }
+            }
+            catch (error) {
+                alert("Sorry, please submit this form at a later time.")
+            }
+            return formSubmitted;
         }
     }
 
