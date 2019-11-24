@@ -12,16 +12,35 @@ Consider adding foreign key constraints, indices etc.
 
 /* AUTHOR TABLE */
 CREATE TABLE `author` (
-  `id`,
-  `comment` varchar(2000)
-) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
+   `id` int(11) NOT NULL AUTO_INCREMENT,
+   `first_name` varchar(50) DEFAULT NULL,
+   `created_date` datetime DEFAULT CURRENT_TIMESTAMP,
+   PRIMARY KEY (`id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 
 /* COMMENT TABLE */
 CREATE TABLE `comment` (
-  `id`,
-  `first_name` varchar(20)
-) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
+   `id` int(11) NOT NULL AUTO_INCREMENT,
+   `comment` varchar(2000) DEFAULT NULL,
+   `author_id` int(11) DEFAULT NULL,
+   `parent_id` int(11) DEFAULT NULL COMMENT '0 - designates top level comment',
+   `created_date` datetime DEFAULT CURRENT_TIMESTAMP,
+   PRIMARY KEY (`id`),
+   KEY `author_id` (`author_id`),
+   CONSTRAINT `author_id` FOREIGN KEY (`author_id`) REFERENCES `author` (`id`) ON UPDATE CASCADE
+ ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8
 
 /* QUERY */
-SELECT * FROM comments;
+SELECT
+  `c`.`id` AS `comment_id`,
+  `c`.`parent_id` AS `parent_id`,
+  `c`.`comment` AS `comment`,
+  `a`.`first_name` AS `author_for_comment`,
+  `c`.`created_date` AS `comment_created_date`,
+  `rc`.`comment` AS `reply_comment`
+  FROM `comment` `c`
+  LEFT JOIN `author` `a` ON `a`.`id` = `c`.`author_id`
+  LEFT JOIN `comment` `rc` ON `rc`.`parent_id` = `c`.`id`
+  ORDER BY `c`.`created_date` DESC, `rc`.`created_date` DESC;
+
 
