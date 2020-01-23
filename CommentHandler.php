@@ -21,13 +21,32 @@
  * Data Structure:
  * comments_table
  * -id
- * -parent_id (0 - designates top level comment)
- * -name
  * -comment
- * -create_date
+ * -author_id
+ * -parent_comment_id (null - designates top level comment)
+ * -created_at
  *
  */
-Class CommentHandler {
+
+Class CommentHandler
+{
+    const server = "127.0.0.1";
+    const username = "root";
+    const password = "password";
+    const db = "tmbc";
+
+    private $conn;
+    private $commentsByParentIdSql;
+
+    public function __construct()
+    {
+        $this->conn = mysqli_connect(self::server, self::username, self::password, self::db);
+        if ($this->conn->connect_errno) {
+            echo "Errno: " . $this->conn->connect_errno . "\n";
+            echo "Error: " . $this->conn->connect_error . "\n";
+        }
+    }
+
     /**
      * getComments
      *
@@ -35,51 +54,60 @@ Class CommentHandler {
      *
      * @return array
      */
-    public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
-        $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
+    public function getComments()
+    {
+        $parentComments = $this->conn
+            ->query("SELECT * FROM comment where parent_comment_id IS NULL ORDER BY created_at DESC")
+            ->fetch_all(MYSQLI_ASSOC);
+
+        foreach ($parentComments as $parentIndex => $parentComment) {
+            $replies = $this->getCommentsByParentId($parentComment['id']);
+            foreach ($replies as $childIndex => $reply) {
+                $nestedReplies = $this->getCommentsByParentId($reply['id']);
+                $replies[$childIndex]['replies'] = $nestedReplies;
             }
-            $comment['replies'] = $replies;
-            $comments[] = $comment;
+            $parentComments[$parentIndex]['replies'] = $replies;
         }
-        return $comments;
+        return $parentComments;
+    }
+
+    private function getCommentsByParentId(int $id)
+    {
+        $sql = $this->getCommentsByParentIdSql();
+        $sql->bind_param('i', $id);
+        $sql->execute();
+        $results = $sql->get_result();
+        return $results->fetch_all(MYSQLI_ASSOC);
+    }
+
+    private function getCommentsByParentIdSql()
+    {
+        if ($this->commentsByParentIdSql == null) {
+            $this->commentsByParentIdSql = $this->conn->prepare(
+                "SELECT * FROM comment where parent_comment_id=? ORDER BY created_at DESC"
+            );
+        }
+        return $this->commentsByParentIdSql;
     }
 
     /**
      * addComment
-     *
      * This function accepts the data directly from the user input of the comment form and creates the comment entry in the database.
      *
-     * @param $comment
-     * @return string or array
+     * @param string $comment
+     * @param int|null $parent_comment_id
+     * @return array|string
      */
-    public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
-        if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
-            return $comment;
+    public function addComment(string $comment, ?int $parent_comment_id = null)
+    {
+        $sql = $this->conn->prepare("INSERT INTO comment (comment, parent_comment_id, created_at) VALUES (?,  ?, NOW())");
+
+        $sql->bind_param('si', $comment, $parent_comment_id);
+        if ($result = $sql->execute()) {
+            $id = $this->conn->insert_id;
+            $sql = "SELECT * FROM comment where id=" . $id . ";";
+            $result = $this->conn->query($sql);
+            return $result->fetch_assoc();
         } else {
             return 'save failed';
         }
