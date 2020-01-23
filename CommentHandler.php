@@ -36,6 +36,7 @@ Class CommentHandler
     const db = "tmbc";
 
     private $conn;
+    private $commentsByParentIdSql;
 
     public function __construct()
     {
@@ -55,41 +56,38 @@ Class CommentHandler
      */
     public function getComments()
     {
-        $result = $this->conn->query(
-            "SELECT * FROM comment where parent_comment_id IS NULL ORDER BY created_at DESC"
-        );
+        $parentComments = $this->conn
+            ->query("SELECT * FROM comment where parent_comment_id IS NULL ORDER BY created_at DESC")
+            ->fetch_all(MYSQLI_ASSOC);
 
-        if ($result === false) {
-            return [];
-        }
-
-        $nested_reply_sql = $this->conn->prepare(
-            "SELECT * FROM comment where parent_comment_id=? ORDER BY created_at DESC"
-        );
-
-        $comments = [];
-        while ($parent_comment = $result->fetch_assoc()) {
-            $nested_reply_sql->bind_param('i', $parent_comment['id']);
-            $nested_reply_sql->execute();
-            $result_reply_1 = $nested_reply_sql->get_result();
-            $replies = [];
-
-            while ($reply_comment = $result_reply_1->fetch_assoc()) {
-                $nested_reply_sql->bind_param('i', $reply_comment['id']);
-                $nested_reply_sql->execute();
-                $result_reply_2 = $nested_reply_sql->get_result();
-                $replies_to_replies = [];
-
-                while ($row2 = $result_reply_2->fetch_assoc()) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply_comment['replies'] = $replies_to_replies;
-                $replies[] = $reply_comment;
+        foreach ($parentComments as $parentIndex => $parentComment) {
+            $replies = $this->getCommentsByParentId($parentComment['id']);
+            foreach ($replies as $childIndex => $reply) {
+                $nestedReplies = $this->getCommentsByParentId($reply['id']);
+                $replies[$childIndex]['replies'] = $nestedReplies;
             }
-            $parent_comment['replies'] = $replies;
-            $comments[] = $parent_comment;
+            $parentComments[$parentIndex]['replies'] = $replies;
         }
-        return $comments;
+        return $parentComments;
+    }
+
+    private function getCommentsByParentId(int $id)
+    {
+        $sql = $this->getCommentsByParentIdSql();
+        $sql->bind_param('i', $id);
+        $sql->execute();
+        $results = $sql->get_result();
+        return $results->fetch_all(MYSQLI_ASSOC);
+    }
+
+    private function getCommentsByParentIdSql()
+    {
+        if ($this->commentsByParentIdSql == null) {
+            $this->commentsByParentIdSql = $this->conn->prepare(
+                "SELECT * FROM comment where parent_comment_id=? ORDER BY created_at DESC"
+            );
+        }
+        return $this->commentsByParentIdSql;
     }
 
     /**
