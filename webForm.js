@@ -41,6 +41,18 @@ class Form {
 
     private validateForm() {
         // Implement me!
+        try{
+            $promise = this.$validator.validate();
+            promise.then(function(val){
+                return val;
+            });
+            promise.catch(function(val){
+              alert(val.toString());  
+            })
+        } catch(e){
+            alert("Sorry, please submit this form at a later time.");
+        }
+        
     }
 
     private submitForm() {
@@ -50,7 +62,26 @@ class Form {
         }
     }
 
+    async submitForm(){
+        try{
+            await HttpClient.post('https://api.example.com/form/', this.responses);
+            this.resetForm();
+        } catch(e){
+            console.log("Error", e);
+        }
+    }
+
     private resetForm() {
+        this.emptyForm = {
+            name: '',
+            address: {
+                street1: '',
+                street2: '',
+                city: '',
+                state: '',
+                zip: '',
+            },
+        };
         this.responses = Object.assign({}, this.emptyForm);
     }
 }
