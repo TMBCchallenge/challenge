@@ -27,6 +27,9 @@
  * -create_date
  *
  */
+
+include_once('connect.php');
+
 Class CommentHandler {
     /**
      * getComments
@@ -36,7 +39,7 @@ Class CommentHandler {
      * @return array
      */
     public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
+        //$db = new mysql('testserver', 'testuser', 'testpassword');
         $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
         $result = mysql_query($sql, $db);
         $comments = [];
@@ -71,7 +74,7 @@ Class CommentHandler {
      * @return string or array
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
+       // $db = new mysql('testserver', 'testuser', 'testpassword');
         $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
         $result = mysql_query($sql, $db);
         if($result) {
