@@ -37,21 +37,32 @@ class Form {
     };
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    //private responses = this.emptyForm;
+	private responses = JSON.parse(JSON.stringify(this.emptyForm)); //Deep Copy
 
     private validateForm() {
         // Implement me!
+		return this.$validator.validate(this.responses).then(result => {
+			if (result.valid === true) return true;
+			alert("\u2022 " + result.errors.join("\n\u2022 ")); //Display errors in bullet points
+			return false;
+		}). 
+		catch(function () { 
+			alert('Sorry, please submit this form at a later time.'); 
+			return false;
+		}); 
     }
 
-    private submitForm() {
-        if (this.validateForm()) {
+    private async submitForm() {
+		const result = await this.validateForm();
+        if (result=== true) {
             HttpClient.post('https://api.example.com/form/', this.responses);
             this.resetForm();
         }
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        this.responses = JSON.parse(JSON.stringify(this.emptyForm)); //Deep Copy
     }
 }
 
