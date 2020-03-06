@@ -42,16 +42,16 @@ Class CommentHandler {
 		return $conn;
 	}
 	
-	/**
+    /**
     * getCommentReplies
     *
     * This function should return replies to a comment providing its id -- $parent_id = 0 returns the top level comments
-	* 
+    * 
     * @param $parent_id
     * @return array
     */
-	private function getCommentReplies($parent_id){
-		$db = $this->getConnection();
+    private function getCommentReplies($parent_id){
+	$db = $this->getConnection();
         $sql = "SELECT * FROM comments_table where parent_id= {$parent_id} ORDER BY create_date DESC;";
 		// Perform a query, check for error
 		$result = mysql_query($sql, $db);
@@ -63,14 +63,14 @@ Class CommentHandler {
 		return $result;
 	}
 	
-	/**
+    /**
     * getComment
     *
     * This function should return a comment providing its id
     * @param $comment_id
     * @return array
     */
-	public function getComment($comment_id){
+    public function getComment($comment_id){
 		$db = $this->getConnection();
 		$sql = "SELECT * FROM comments_table where id={$comment_id};";
 		// Perform a query, check for error
@@ -84,7 +84,7 @@ Class CommentHandler {
 	}
 	
 	
-	/**
+    /**
     * getComments_improved
     * This function gets all comments at one query instead of hitting the database multiple times
     * This function should return a structured array of all comments and replies
@@ -109,6 +109,7 @@ Class CommentHandler {
 		    $log = mysql_query("INSERT INTO db_errors (error_page,error_text) VALUES ('".PAGE."','".mysql_escape_string($error)."')");
 			return "ERROR";
 		} 
+	        //Constructing the three level array
 		while ($row = mysql_fetch_assoc($result)) {
 			if (!isset($comments[$row['L0_id']])) $comments[$row['L0_id']]= array('id' =>$row['L0_id'], 'name' =>$row['L0_name'], 'comment' =>$row['L0_comment'], 'create_date'=> $row['L0_create_date']);
 			if(!empty($row['L1_id']) and !isset($comments[$row['L0_id']]['replies'][$row['L1_id']])) $comments[$row['L0_id']]['replies'][$row['L1_id']] = array('id' =>$row['L1_id'], 'name' =>$row['L1_name'], 'comment' =>$row['L1_comment'], 'create_date'=> $row['L1_create_date']);
@@ -117,7 +118,7 @@ Class CommentHandler {
 		return $comments; 
     }
 	
-	/**
+    /**
     * getComments
     *
     * This function should return a structured array of all comments and replies
@@ -125,8 +126,8 @@ Class CommentHandler {
     * @return array
     */
     public function getComments() {
-		$result = $this->getCommentReplies(0);
-		if ($result == "ERROR") return "ERROR";
+	$result = $this->getCommentReplies(0);
+	if ($result == "ERROR") return "ERROR";
         $comments = [];
         while ($row = mysql_fetch_assoc($result)) {
             $comment = $row;
@@ -135,8 +136,8 @@ Class CommentHandler {
             $replies = [];
             while ($row1 = mysql_fetch_assoc($result_reply_1)) {
                 $reply = $row1;
-				$result_reply_2 = $this->getCommentReplies($row1['id']);
-				if ($result_reply_2 == "ERROR") return "ERROR";
+		$result_reply_2 = $this->getCommentReplies($row1['id']);
+		if ($result_reply_2 == "ERROR") return "ERROR";
                 $replies_to_replies = [];
                 while ($row2 = mysql_fetch_assoc($result_reply_2)) {
                     $replies_to_replies[] = $row2;
@@ -159,11 +160,11 @@ Class CommentHandler {
     * @return string or array
     */
     public function addComment($comment) {
-		//Instead of hitting the database to checkc the level of parent_id, level of each comment could come from UI
-		if (!in_array($comment['level'], VALIDLEVELIDS)) return "Comment level is not valid."; 
-		if (empty($comment['parent_id']) or !is_numeric($comment['parent_id'])) return "Parent ID is not valid.";
-		if (empty($comment['name'])) return "Name is Required.";
-		if (empty($comment['comment'])) return "Comment is Required.";
+	//Instead of hitting the database to checkc the level of parent_id, level of each comment could come from UI
+	if (!in_array($comment['level'], VALIDLEVELIDS)) return "Comment level is not valid."; 
+	if (empty($comment['parent_id']) or !is_numeric($comment['parent_id'])) return "Parent ID is not valid.";
+	if (empty($comment['name'])) return "Name is Required.";
+	if (empty($comment['comment'])) return "Comment is Required.";
         $db = $this->getConnection();
         $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES ({$comment['parent_id']}, " . mysql_escape_string($comment['name']) . ", " . mysql_escape_string($comment['comment']) . ", NOW())";
         $result = mysql_query($sql, $db);
