@@ -1,6 +1,6 @@
 /*
 Application requires threaded commenting system. There will be an author and comments belong to the author.
-Please write create statements for tables accordingly and write query to be run on application that will return :
+Please write create statements for tables accordingly and write ONE query to be run on application that will return :
 - All the comments sorted by created date
 - Replies to those comments
 - first_name of the author for each comment
