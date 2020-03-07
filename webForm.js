@@ -18,6 +18,7 @@
  *  (3) What is wrong with how we initially set "responses" to the default values of "emptyForm" as well as the implementation
  *      of resetForm()? Can you refactor the inital setting of responses and/or the resetForm() function to achieve the
  *      desired behavior?
+ *      In this way of initializing the "responses", a copy of "emptyForm" is actually made.
  */
 
 import FormValidator from 'validator-lib';
@@ -37,21 +38,95 @@ class Form {
     };
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    private responses = this.resetForm();
 
     private validateForm() {
-        // Implement me!
+        var word = /^[a-zA-Z\s]+$/;
+        var st1 = /^(?=.*\d)[a-zA-Z\s\d\/]+$/;
+        var st2 = /^[a-zA-Z\s\d\/]*$/;
+        var digit  = /^\d{5}(-\d{4})?$/;
+
+        if(!word.test(this.name.value)) {
+            alert("Please enter a name with only letters and whitespace!");
+            this.name.focus();
+            return false;
+          }
+        
+          if(!st1.test(this.street1.value)) {
+            alert("Please enter a valid street address!");
+            this.street1.focus();
+            return false;
+          }
+
+          if(!st2.test(this.street2.value)) {
+            alert("Please enter a valid second street address!");
+            this.street2.focus();
+            return false;
+          }
+
+          if(!word.test(this.city.value)) {
+            alert("Please enter a valid city!");
+            this.city.focus();
+            return false;
+          }
+
+          if(!word.test(this.state.value)) {
+            alert("Please enter a valid State!");
+            this.state.focus();
+            return false;
+          }
+
+          if(!digit.test(this.zip.value)) {
+            alert("Please enter a 5-digit zip code!");
+            this.zip.focus();
+            return false;
+          }
+      
+          return true;
+
     }
+
+   /* private submitForm() {
+        if (this.validateForm()) {
+            HttpClient.post('https://api.example.com/form/', this.responses);
+            this.resetForm();
+        }
+    } */
 
     private submitForm() {
         if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
+            
+            fetch('https://api.example.com/form/', this.responses)
+            .then((response) => {
+              if (!response.ok) {
+                alert('Sorry, please submit this form at a later time.', error);
+              }
+              return response.json();
+            })
+            .then((result) => {
+              return {
+                        valid: response.ok,
+                        errors: error
+                    }
+            })
+            .catch((error) => {
+              console.log('Sorry, please submit this form at a later time.', error);
+            });
+
             this.resetForm();
         }
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        //this.responses = Object.assign({}, this.emptyForm);
+        this.name = '';
+        this.address.street1 = '';
+        this.address.street2 = '';
+        this.address.city = '';
+        this.address.state = '';
+        this.address.zip = '';
+        
+        return this.responses;
     }
 }
 

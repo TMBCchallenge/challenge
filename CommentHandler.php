@@ -27,6 +27,9 @@
  * -create_date
  *
  */
+
+include_once('connect.php');
+
 Class CommentHandler {
     /**
      * getComments
@@ -35,8 +38,8 @@ Class CommentHandler {
      *
      * @return array
      */
-    public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
+    /*public function getComments() {
+        //$db = new mysql('testserver', 'testuser', 'testpassword');
         $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
         $result = mysql_query($sql, $db);
         $comments = [];
@@ -61,6 +64,39 @@ Class CommentHandler {
         }
         return $comments;
     }
+*/
+
+    public function getComments() {
+        $comments = [];
+
+        $sql_comment = "SELECT id_comment, id_author, lib_comment, parent_id, created_on FROM comments_table where parent_id = 0 ORDER BY created_on DESC;";
+        $rslt_comment = mysqli_query($connexion_db,$sql_comment);
+        while ($row = mysqli_fetch_assoc($rslt_comment)) {
+            $comment = $row;
+            $comment['replies'] = getReplies($row['id_comment']);
+        }
+
+        $comments[] = $comment;
+
+        return $comments;
+
+        }
+
+    public function getReplies($idComment){
+        $sql_reply = "SELECT id_comment, id_author, lib_comment, parent_id, created_on FROM comments_table where parent_id= " . $idComment . " ORDER BY created_on DESC;";
+        $rslt_reply = mysqli_query($connexion_db,$sql_reply);
+        $replies = [];
+
+        while ($row = mysqli_fetch_assoc($rslt_reply)) {
+            $reply = $row;
+            $reply['replies'] = getReplies($row['id_comment']);
+        }
+        $replies = $reply;
+
+        return $replies;
+
+    }
+    
 
     /**
      * addComment
@@ -70,8 +106,9 @@ Class CommentHandler {
      * @param $comment
      * @return string or array
      */
-    public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
+    /*
+     public function addComment($comment) {
+       // $db = new mysql('testserver', 'testuser', 'testpassword');
         $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
         $result = mysql_query($sql, $db);
         if($result) {
@@ -83,5 +120,27 @@ Class CommentHandler {
         } else {
             return 'save failed';
         }
-    }
+    } */
+
+
+    public function addComment($comment) {
+        $comment = mysqli_real_escape_string($connexion_db,$comment);
+         $sql = "INSERT INTO comments_table (id_author, lib_comment, parent_id) VALUES (" . $comment['id_author'] . ", " . $comment['lib_comment'] . ", " . $comment['parent_id'] . ")";
+         $result = mysqli_query($connexion_db,$sql);
+         if($result) {
+             $id = mysqli_insert_id($connexion_db);
+             $sql = "SELECT * FROM comments_table where id_comment=" . $id . ";";
+             $result = mysqli_query($connexion_db,$sql);
+             while ($row = mysqli_fetch_assoc($result)) {
+                $comment = $row;
+             }
+             return $comment;
+         } else {
+             return 'save failed';
+         }
+     }
+
+
+
+
 }
