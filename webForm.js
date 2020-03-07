@@ -18,6 +18,7 @@
  *  (3) What is wrong with how we initially set "responses" to the default values of "emptyForm" as well as the implementation
  *      of resetForm()? Can you refactor the inital setting of responses and/or the resetForm() function to achieve the
  *      desired behavior?
+ *      In this way of initializing the "responses", a copy of "emptyForm" is actually made.
  */
 
 import FormValidator from 'validator-lib';
@@ -37,7 +38,7 @@ class Form {
     };
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    private responses = this.resetForm();
 
     private validateForm() {
         var word = /^[a-zA-Z\s]+$/;
@@ -95,7 +96,7 @@ class Form {
     private submitForm() {
         if (this.validateForm()) {
             
-            fetch('https://api.example.com/form/')
+            fetch('https://api.example.com/form/', this.responses)
             .then((response) => {
               if (!response.ok) {
                 alert('Sorry, please submit this form at a later time.', error);
@@ -117,7 +118,15 @@ class Form {
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        //this.responses = Object.assign({}, this.emptyForm);
+        this.name = '';
+        this.address.street1 = '';
+        this.address.street2 = '';
+        this.address.city = '';
+        this.address.state = '';
+        this.address.zip = '';
+        
+        return this.responses;
     }
 }
 
