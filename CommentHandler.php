@@ -27,7 +27,20 @@
  * -create_date
  *
  */
-Class CommentHandler {
+
+namespace App\Services\Comment; 
+
+use Exception;
+
+class CommentHandler {
+
+    protected $commentServices;
+
+    public function __construct(CommentServices $commentServices)
+    {
+        $this->commentServices = $commentServices;
+    }
+
     /**
      * getComments
      *
@@ -36,29 +49,17 @@ Class CommentHandler {
      * @return array
      */
     public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
-        $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
+
+        $comments = $this->commentServices->getCommentsByParentId(0);
+        foreach ($comments as $comment) {            
+            $commentsFirst = $this->commentServices->getCommentsByParentId($comment['parent_id']);
+            foreach ($commentsFirst as $first) {            
+                $commentsSecond = $this->commentServices->getCommentsByParentId($first['parent_id']);
+                $commentsFirst['replies'] = $commentsSecond;
             }
-            $comment['replies'] = $replies;
-            $comments[] = $comment;
+            $comment['replies'] = $commentsFirst;
         }
+        
         return $comments;
     }
 
@@ -71,17 +72,16 @@ Class CommentHandler {
      * @return string or array
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
-        if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
-            return $comment;
-        } else {
-            return 'save failed';
+
+        $comment = null;
+        try {            
+            $lastInsertedId = $this->commentServices->addComment($comment);
+            if ($lastInsertedId)
+                $comment = $this->commentServices->getCommentById($lastInsertedId);
+        } catch (Exception $e) {
+            throw new Exception('The comment is not saved!');
         }
+
+        return $comment;
     }
 }
