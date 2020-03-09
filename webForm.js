@@ -37,21 +37,37 @@ class Form {
     };
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    private responses = this.resetForm();
 
-    private validateForm() {
-        // Implement me!
+    private validateForm() {       
+            $validator.validate(this.responses).then(function (response) {
+                if (!response.valid) {
+                    alert(response.errors);
+                    return false;
+                }
+                
+                return true;
+            }, function (error) {
+                alert('Sorry, please submit this form at a later time.');
+                return false;
+            });
     }
 
     private submitForm() {
         if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+            HttpClient.post('https://api.example.com/form/', this.responses).then(function () {
+                this.resetForm();
+            });
         }
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        this.name = '';
+        this.address.street1 = '';
+        this.address.street2 = '';
+        this.address.city = '';
+        this.address.state = '';
+        this.address.zip = '';
     }
 }
 
