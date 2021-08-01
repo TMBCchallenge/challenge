@@ -11,17 +11,51 @@ Consider adding foreign key constraints, indices etc.
 */
 
 /* AUTHOR TABLE */
-CREATE TABLE `author` (
-  `id`,
-  `comment` varchar(2000)
+CREATE TABLE `authors` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(255) NOT NULL,
+  `last_name` varchar(255) NOT NULL,
+  `created_date` TIMESTAMP NOT NULL DEFAULT CURRENT_DATE(),
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
 
 /* COMMENT TABLE */
-CREATE TABLE `comment` (
-  `id`,
-  `first_name` varchar(20)
+CREATE TABLE `comments` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `parent_id` int NOT NULL,
+  `author_id` int NOT NULL,
+  `comment` varchar(2000),
+  `created_date` TIMESTAMP NOT NULL DEFAULT CURRENT_DATE(),
+   PRIMARY KEY (`id`),
+   FOREIGN KEY (`author_id`)
+      REFERENCES authors(`id`)
+      ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
 
 /* QUERY */
-SELECT * FROM comments;
+- All the comments sorted by created date
+SELECT * FROM comments WHERE parent_id = 0 order by created_date;
+
+- Replies to those comments
+SELECT replies.comment
+FROM comments 
+LEFT JOIN comments as `replies` ON comments.id = replies.parent_id
+WHERE comments.id = 0 
+order by created_date;
+
+- first_name of the author for each comment
+SELECT authors.first_name
+FROM comments 
+LEFT JOIN authors ON comments.author_id = authors.id
+WHERE parent_id = 0 
+order by comments.created_date;
+
+- Created date of every comment
+SELECT created_date FROM comments WHERE parent_id = 0 order by created_date;
+
+
+
+
+
+
 
