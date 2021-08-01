@@ -35,23 +35,49 @@ Class CommentHandler {
      *
      * @return array
      */
+    private $_db;
+    private $_dns      = 'testserver';
+    private $_user     = 'testuser';
+    private $_password = 'testpassword';
+    
+    public function __construct(){
+ 		
+        try
+        {
+            $this->_db = new mysql($this->_dns, $this->_user, $this->_password);
+        }
+        catch(Exception $e)
+        {
+            echo $e->getMessage();
+        }
+ 	}
+    
     public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
+        
+        $sql = "
+        SELECT  ct1.*,ct2.*,ct3.*,
+                ct1.id as ct1_comment,
+                ct2.id as ct2_reply,
+                ct3.id as ct3_reply_to_reply
+        FROM comments_table as ct1
+        LEFT JOIN comments_table as ct2 ON ct1.parent_id = ct2.parent_id
+        LEFT JOIN comments_table as ct3 ON ct2.parent_id = ct3.parent_id
+        where ct1.parent_id=0
+        ORDER BY ct1.create_date DESC;";
+        // prevent SQL injection
+        $sql = $db->prepare($sql);
+        $result = mysql_query($sql, $this->_db);
+        $wrapper = [];
         $comments = [];
         while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
+            $wrapper[$row['ct1_comment']]
+                    [$row['ct2_reply']]
+                    [$row['ct3_reply_to_reply']][] = $row;
+        }
+        foreach($wrapper as $comment) {
+            foreach($comment as $replies) {
+                foreach($replies as $reply_to_reply) {
+                    $replies_to_replies[] = $reply_to_reply;
                 }
                 $reply['replies'] = $replies_to_replies;
                 $replies[] = $reply;
@@ -60,6 +86,7 @@ Class CommentHandler {
             $comments[] = $comment;
         }
         return $comments;
+
     }
 
     /**
@@ -71,14 +98,12 @@ Class CommentHandler {
      * @return string or array
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
+       
         $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
+         // prevent SQL injection
+        $sql = $db->prepare($sql);
+        $result = mysql_query($sql, $this->_db);
         if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
             return $comment;
         } else {
             return 'save failed';
