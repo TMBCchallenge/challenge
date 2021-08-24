@@ -41,6 +41,21 @@ class Form {
 
     private validateForm() {
         // Implement me!
+        // im not quiet understand this whole part(webForm.js), but i try best base on my little knowledge in this area
+        var promise = new Promise(function(resolve, reject) {
+        
+        output = $this.validator.validate();
+            
+        if (output.valid) {
+            resolve(() => {return true});
+        }
+        else {
+            reject( alert('Sorry please submit this form at a later time') );
+        }
+            
+        });
+        
+     
     }
 
     private submitForm() {
