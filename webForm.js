@@ -17,14 +17,16 @@
  *
  *  (3) What is wrong with how we initially set "responses" to the default values of "emptyForm" as well as the implementation
  *      of resetForm()? Can you refactor the inital setting of responses and/or the resetForm() function to achieve the
- *      desired behavior?
+ *      desired behavior? 
+ *  we can use binding in our constructor from class instead of assigning object from global level.
  */
 
 import FormValidator from 'validator-lib';
 import HttpClient from 'http-lib';
 
 class Form {
-    private $validator = new FormValidator();
+    //  private $validator = new FormValidator();
+    private validator = new FormValidator();
     private emptyForm = {
         name: '',
         address: {
@@ -36,23 +38,47 @@ class Form {
         },
     };
 
+
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
     private responses = this.emptyForm;
 
-    private validateForm() {
+    private validateForm(res) {
         // Implement me!
+        let response = this.validator.validate(res);
+
+        if (!response.valid) {
+            alert(response.errors[0]);
+            return false;
+        }
+        response.catch(err => {
+            if (err) {
+                alert("Sorry, please submit this form at a later time.");
+                return false;
+            }
+        })
+        return true;
     }
 
     private submitForm() {
-        if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+        let responses = this.responses;
+        if (this.validateForm(res)) {
+            HttpClient.post('https://api.example.com/form/', responses)
+                .then(res => {
+                    if (res.status == 200) {
+                        this.resetForm();
+                    } else {
+                        throw new Error(res.status);
+                    }
+                })
         }
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        //  when we use this.emptyForm, it will be the global reference so it will be empty, unless we have contructor to bind it. 
+        this.responses = Object.assign({}, emptyForm);
     }
+
+
 }
 
 /**
