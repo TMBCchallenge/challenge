@@ -20,37 +20,84 @@
  *      desired behavior?
  */
 
-import FormValidator from 'validator-lib';
-import HttpClient from 'http-lib';
+// import FormValidator from 'validator-lib';
+// import HttpClient from 'http-lib';
+
+class FormValidator {
+    validate(fields) {
+        // validation here
+        var response = {
+            success: false,
+        };
+
+        // name required
+        if (fields.name == '') {
+            response.errormessage = 'Name is missing';
+            return response;
+        }
+
+        response.success = true;
+        return response;
+    }
+}
 
 class Form {
-    private $validator = new FormValidator();
-    private emptyForm = {
-        name: '',
-        address: {
-            street1: '',
-            street2: '',
-            city: '',
-            state: '',
-            zip: '',
-        },
-    };
-
-    // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
-
-    private validateForm() {
-        // Implement me!
+    constructor() {
+        this.validator = new FormValidator();
+        this.emptyForm = {
+            name: '',
+            address: {
+                street1: '',
+                street2: '',
+                city: '',
+                state: '',
+                zip: '',
+            },
+        };
     }
 
-    private submitForm() {
+    // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
+    // var responses = this.emptyForm;
+
+    validateForm() {
+        // Implement me!
+        var fields = this.getFields();
+        var response = this.validator.validate(fields);
+
+        if (response.success == 'false') {
+            alert(response.errormessage);
+        }
+
+        return response.success;
+    }
+
+    getFields() {
+        // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
+        // return {
+        //     name: 'Ronn',
+        //     address: {
+        //         street1: 'd',
+        //         street2: 'aaa',
+        //         city: 'LA',
+        //         state: 'CA',
+        //         zip: '12345',
+        //     },
+        // };
+        return this.emptyForm();
+    }
+
+    submitForm() {
         if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+            var form = this;
+            HttpClient.post('https://api.example.com/form/', function (response) {
+                if (response.success) {
+                    form.resetForm();
+                }
+            });
         }
     }
 
-    private resetForm() {
+    resetForm() {
         this.responses = Object.assign({}, this.emptyForm);
     }
 }
