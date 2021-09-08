@@ -18,6 +18,8 @@
  *  (3) What is wrong with how we initially set "responses" to the default values of "emptyForm" as well as the implementation
  *      of resetForm()? Can you refactor the inital setting of responses and/or the resetForm() function to achieve the
  *      desired behavior?
+ *
+ *      //A clean way to pass by value instead of by reference is just to declare a function which returns a copy of the object outside of its own scope
  */
 
 import FormValidator from 'validator-lib';
@@ -25,33 +27,64 @@ import HttpClient from 'http-lib';
 
 class Form {
     private $validator = new FormValidator();
-    private emptyForm = {
-        name: '',
-        address: {
-            street1: '',
-            street2: '',
-            city: '',
-            state: '',
-            zip: '',
-        },
-    };
 
-    // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
-
-    private validateForm() {
-        // Implement me!
+    private returnEmptyForm() {
+        return {
+            name: '',
+            address: {
+                street1: '',
+                street2: '',
+                city: '',
+                state: '',
+                zip: '',
+            },
+        };
     }
 
-    private submitForm() {
-        if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+    // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
+    private responses = this.returnEmptyForm(); //This was previously mutable by reference
+
+    async #validateForm(): boolean {
+        try {
+            var result = await FormValidator.validate()
+            if (!Array.isArray(result)) {
+                return result //Result in this case would be the actual result validation and is bool true
+            } else {
+                // - If the validate() function returns with validation errors, display the errors in a browser alert
+                alert(result.join("\n"))
+                return false;
+            }
+        } catch {
+            // If the validate() function returns with a failed promise (meaning the API is not available at the moment),
+            // display a browser alert stating "Sorry, please submit this form at a later time."
+
+            alert("Sorry, please submit this form at a later time.");
+            return false;
         }
+
+
+    }
+
+    async #submitForm() {
+        // Can you refactor submitForm() so that it waits to reset the form after we are sure the form responses have been
+        // successfully received by the API?
+        if (this.validateForm()) {
+            try {
+                const fetchResponse = await HttpClient.post('https://api.example.com/form/', this.responses)
+                const data = await fetchResponse.json();
+                if (data) {
+                    this.resetForm();
+                }
+            } catch (e) {
+                return e;
+            }
+        }
+
+
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        this.responses = this.returnEmptyForm();
     }
 }
 
