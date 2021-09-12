@@ -41,10 +41,23 @@ class Form {
 
     private validateForm() {
         // Implement me!
+        private result = this.$validator.validate(this.responses);
+        if (result.valid == true){
+          return true;
+        } else if (result.valid == false){
+          alert('Error ' + result.errors);
+          return false;
+        }else {
+          alert('Sorry, please submit this form at a later time.');
+          return false;
+        }
+        return false;
     }
 
     private submitForm() {
-        if (this.validateForm()) {
+        //only resetFrom after it passes validation
+        //otherwise it will reset the whole form and user has to enter the data again everytime it fails the validation
+        if (this.validateForm() == true) {
             HttpClient.post('https://api.example.com/form/', this.responses);
             this.resetForm();
         }

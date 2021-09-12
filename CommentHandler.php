@@ -27,6 +27,17 @@
  * -create_date
  *
  */
+Class Database {
+
+  public function getConnected(){
+    //using mysql prepared statement in order to avoid sql injection and other security vulnerabilities
+    $db = new mysqli('testserver', 'testuser', 'testpassword');
+    // Checking connection; making sure database is connecting
+    if ($db->connect_error) {
+      die("Connection failed: " . $db->connect_error);
+    }
+  }
+}
 Class CommentHandler {
     /**
      * getComments
@@ -35,27 +46,25 @@ Class CommentHandler {
      *
      * @return array
      */
-    public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
+     //removing redundant database connection and calling it only one time
+     $database = new Database();
+     $db = $database->getConnected();
+     //initial parent id
+     $parent_id=0
+
+
+    /* used recursive method to access the comments and replies
+    initial parent_id is set to 0;
+    */
+    public function getComments($parent_id) {
+
+        $sql = "SELECT * FROM comments_table where parent_id = $parent_id ORDER BY create_date DESC;";
+        //$result = mysql_query($sql, $db);
+        $result = $db->query($sql);
         $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
+        while ($row = $result->fetch_assoc()) {
             $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
-            }
+            $replies = getComments($row['id']);
             $comment['replies'] = $replies;
             $comments[] = $comment;
         }
@@ -71,14 +80,17 @@ Class CommentHandler {
      * @return string or array
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
-        if($result) {
-            $id = mysql_insert_id();
+
+        // added prepared statement in order to avoid SQL injection in the INSERT
+        $sql = $db->prepare("INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (?, ?, ?, ?)");
+        $sql->bind_param("isss", $comment['parent_id'], $comment['name'], $comment['comment'], NOW());
+
+        //if INSERT is true
+        if($sql->execute()) {
+            $id = $db->insert_id;
             $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
+            $result = $db->query($sql);
+            $comment = $result -> fetch_assoc();
             return $comment;
         } else {
             return 'save failed';
