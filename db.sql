@@ -13,15 +13,26 @@ Consider adding foreign key constraints, indices etc.
 /* AUTHOR TABLE */
 CREATE TABLE `author` (
   `id`,
-  `comment` varchar(2000)
-) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
-
-/* COMMENT TABLE */
-CREATE TABLE `comment` (
-  `id`,
   `first_name` varchar(20)
 ) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
 
-/* QUERY */
-SELECT * FROM comments;
+/* COMMENT TABLE */
+/* added comments and first_name column to improve performance*/
+/* normalized the table by adding author first_name column to avoid two table joins */
+CREATE TABLE `comment` (
+  `id`,
+  `parent_id`,
+  `author_id` int,
+  `first_name` varchar(20),
+  `created_date` date,
+  `comments` varchar(2000)
+  FOREIGN KEY (author_id) REFERENCES author(id)
+) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
 
+/* QUERY */
+/* by default, parent_id is 0, if it is the original comment, otherwise parent's comment id*/
+SELECT first_name, comments, created_date, (SELECT comments FROM comment WHERE
+parent_id = (select id FROM comment WHERE parent_id = 0)) as replies
+FROM comment
+WHERE parent_id = 0
+ORDER BY created_date DESC;
