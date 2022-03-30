@@ -10,6 +10,30 @@ You can add/edit columns to the tables or create additional tables if necessary.
 Consider adding foreign key constraints, indices etc.
 */
 
+
+/* AUTHOR TABLE */
+CREATE TABLE `author` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(20),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
+
+/* COMMENT TABLE */
+CREATE TABLE `comment` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `author_id` int(11) NOT NULL,
+  `parent_id` int(11) default 0,
+  `date` timestamp timestamp default current_timestamp NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`parent_id`) REFERENCES `author`(`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2046711 DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;
+
+/* QUERY */
+SELECT * FROM comments;
+
+
+
+
 /* AUTHOR TABLE */
 CREATE TABLE `author` (
   `id`,

@@ -27,6 +27,50 @@
  * -create_date
  *
  */
+
+
+ /* Config DB connection. TO DO: move to a separate file and include in the CommentHandler.php */
+Class DB{
+    private static $testserver='testserver';
+    private static $testuser='testuser';
+    private static $testpassword='testpassword';
+    private static $connection;
+
+    public function __construct($testdbname=''){        
+        try {
+            self::$connection = new PDO("mysql:host=".self::$testserver."; dbname=$testdbname", self::$testuser, self::$testpassword);
+            self::$connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            echo "Connected to $testdbname at ".self::$testserver." successfully.";
+        } 
+        catch (PDOException $e) {
+            die("Connection to $testdbname at ". self::$testserver. " failed: ". $e->getMessage());
+        }
+    }
+
+    static function query($sql, $var_array = array())
+    {
+        try{
+            //Prepare, Bind, execute
+            $stmt = self::$connection->prepare($sql);
+            if (!empty($var_array)) { 
+                foreach ($var_array as $key => $value) {
+                    if(is_null($value)) $value = '';
+                    $stmt->bindValue(':key', $value);
+                }
+            }            
+           $stmt->execute();
+        }
+
+        catch(PDOException $e){
+            echo $e->getMessage();
+        } 
+    }            
+    
+    static function assoc($stmt){
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+}
+
 Class CommentHandler {
     /**
      * getComments
@@ -35,33 +79,33 @@ Class CommentHandler {
      *
      * @return array
      */
-    public function getComments() {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "SELECT * FROM comments_table where parent_id=0 ORDER BY create_date DESC;";
-        $result = mysql_query($sql, $db);
+
+    private $db;
+
+    public function __construct($testdbname){
+        $this->$db = new DB();
+    }
+
+    public function getCommentById($id){
+        $sql = "SELECT * FROM comments_table where id= :id";
+        $result = query($sql, array(":id"=>$id));
+        $comment = assoc($result);
+        return $comment;
+    }
+
+
+    public function getComments($parent_id=0){
         $comments = [];
-        while ($row = mysql_fetch_assoc($result)) {
-            $comment = $row;
-            $reply_1_sql = "SELECT * FROM comments_table where parent_id=" . $row['id'] . " ORDER BY create_date DESC;";
-            $result_reply_1 = mysql_query($reply_1_sql, $db);
-            $replies = [];
-            while ($row1 = mysql_fetch_assoc($result)) {
-                $reply = $row1;
-                $reply_2_sql = "SELECT * FROM comments_table where parent_id=" . $row1['id'] . " ORDER BY create_date DESC;";
-                $result_reply_2 = mysql_query($reply_2_sql, $db);
-                $replies_to_replies = [];
-                while ($row2 = mysql_fetch_assoc($result)) {
-                    $replies_to_replies[] = $row2;
-                }
-                $reply['replies'] = $replies_to_replies;
-                $replies[] = $reply;
-            }
-            $comment['replies'] = $replies;
-            $comments[] = $comment;
+        $sql = "SELECT * FROM comments_table where parent_id= :parent_id ORDER BY create_date DESC;";
+        $result = query($sql, array(':parent_id'=>$parent_id));
+        while ($comment = assoc($result)) {
+            $comment['replies']= $this->getComments($comment['id']); //recursive call to get comment replies of all levels
+            $comments[] = $comment;       
         }
         return $comments;
     }
 
+    
     /**
      * addComment
      *
@@ -71,14 +115,16 @@ Class CommentHandler {
      * @return string or array
      */
     public function addComment($comment) {
-        $db = new mysql('testserver', 'testuser', 'testpassword');
-        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (" . $comment['parent_id'] . ", " . $comment['name'] . ", " . $comment['comment'] . ", NOW())";
-        $result = mysql_query($sql, $db);
+        $sql = "INSERT INTO comments_table (parent_id, name, comment, create_date) VALUES (:parent_id, :author, :comment, :ts)";
+        //use timestamp instead of sql Now() or set a timestamp data type for a field and it will be recordeed automatically 
+
+        $result = query($sql, array(':parent_id'=> $comment['parent_id'], 
+                                    ':author'=>htmlentities(trim($comment['name'])), 
+                                    ':comment'=>htmlentitiestrim(($comment['comment'])),
+                                    ':ts'=> time())); 
         if($result) {
-            $id = mysql_insert_id();
-            $sql = "SELECT * FROM comments_table where id=" . $id . ";";
-            $result = mysql_query($sql, $db);
-            $comment = mysql_result($result, 0);
+            $id = $this->db->lastInsertId();
+            $comment=$this->getCommentById($id);
             return $comment;
         } else {
             return 'save failed';

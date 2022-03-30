@@ -25,33 +25,64 @@ import HttpClient from 'http-lib';
 
 class Form {
     private $validator = new FormValidator();
-    private emptyForm = {
-        name: '',
-        address: {
-            street1: '',
-            street2: '',
-            city: '',
-            state: '',
-            zip: '',
-        },
-    };
+    private apiStatus= true;
+    
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    private responses = this.resetForm();
 
     private validateForm() {
-        // Implement me!
+
+        let validateResult=  this.$validator.validate(); //call to a validate function. Get a returned Promise object. 
+
+        /*The case of Resolved Promise, API is available*/
+        validateResult.then(
+            function(res){
+                if(res.valid){
+                    return true;
+                }
+                else{
+                    alert(res.errors);
+                    return false;
+                }
+            },
+            
+            /* The case of Rejected Promise (If API is not available)*/
+            function(error){
+                alert("Sorry, please submit this form at a later time.");
+            this.apiStatus= false;
+            return false;
+            }
+        );
+
+        /* The case of Rejected Promise (If API is not available)*/
+        validateResult.catch(error => {
+            alert("Sorry, please submit this form at a later time.");
+            this.apiStatus= false;
+            return false;
+        });        
     }
 
     private submitForm() {
         if (this.validateForm()) {
             HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+            if(this.apiStatus){ //reset form only if api is available
+                this.resetForm();
+            }
         }
     }
 
     private resetForm() {
-        this.responses = Object.assign({}, this.emptyForm);
+        return{
+                name: '',
+                address: {
+                    street1: '',
+                    street2: '',
+                    city: '',
+                    state: '',
+                    zip: '',
+                },
+            };
     }
 }
 
