@@ -35,16 +35,25 @@ class Form {
 
         let validateResult=  this.$validator.validate(); //call to a validate function. Get a returned Promise object. 
 
-        /*The case of Resolved Promise*/
-        validateResult.then(success=>{
-            if(valid){
-                return true;
+        /*The case of Resolved Promise, API is available*/
+        validateResult.then(
+            function(res){
+                if(res.valid){
+                    return true;
+                }
+                else{
+                    alert(res.errors);
+                    return false;
+                }
+            },
+            
+            /* The case of Rejected Promise (If API is not available)*/
+            function(error){
+                alert("Sorry, please submit this form at a later time.");
+            this.apiStatus= false;
+            return false;
             }
-            else{
-                alert(errors);
-                return false;
-            }
-        });
+        );
 
         /* The case of Rejected Promise (If API is not available)*/
         validateResult.catch(error => {
