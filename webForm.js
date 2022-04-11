@@ -18,14 +18,26 @@
  *  (3) What is wrong with how we initially set "responses" to the default values of "emptyForm" as well as the implementation
  *      of resetForm()? Can you refactor the inital setting of responses and/or the resetForm() function to achieve the
  *      desired behavior?
+ *
+ * BH Notes:
+ *  (3) Because responses says that it is reactively updated from the UI, I'm assuming there's some sort of an "updateState"
+ *      method that is used to accomplish that.  I'm going to put a placeholder method of that name.
+ *      (a) When the constructor of class Form is run, it should force an "updateState" to get the current status of the form
+ *          rather then just blasting an empty set of values in there.  updateState will then render the form with that state to
+ *          insure things are in sync from the start.
+ *      (b) We also need some kind of "render" method which will re-render the entire form, or if we have subcomponents for
+ *          the form fields, etc., we should be able to re-render a portion of the form if  we change the state such as when
+ *          we do a "resetForm" where we have changed the state data.
+ *
+ *      Of course a framework like React handles a lot of those details for us so we don't have to re-invent the wheel.
  */
 
 import FormValidator from 'validator-lib';
 import HttpClient from 'http-lib';
 
 class Form {
-    private $validator = new FormValidator();
-    private emptyForm = {
+    #validator = new FormValidator();
+    #emptyForm = {
         name: '',
         address: {
             street1: '',
@@ -37,21 +49,64 @@ class Form {
     };
 
     // Assume this is reactive (i.e. if the user updates the form fields in the UI, this object is updated accordingly)
-    private responses = this.emptyForm;
+    // #responses = this.emptyForm;
 
-    private validateForm() {
-        // Implement me!
+    constructor() {
+        this.updateState();
     }
 
-    private submitForm() {
+    #validateForm() {
+        let bReturn = false;
+        const validator = new FormValidator();
+        let validationPromise = validator.validate(responses);
+
+        validationPromise.then(
+            responseObj => {
+                if (responseObj.valid) {
+                    bReturn = true;
+                } else {
+                    alert("The following errors were found in the form\n" + implode("\n", responeObj.errors));
+                }
+            },
+            rejectObj => alert("Sorry, please submit this form at a later time.")
+        );
+        return bReturn;
+   }
+
+   #postFormSubmission() {
+       return new Promise(function(resolve, reject) {
+           let responsObj = HttpClient.post('https://api.example.com/form/', this.responses);
+           if (responseObj.status == 200) {
+               resolve("OK");
+           } else {
+               reject(new Error("Bad status from API " + responseObj.status));
+           }
+       });
+   }
+
+    #submitForm() {
         if (this.validateForm()) {
-            HttpClient.post('https://api.example.com/form/', this.responses);
-            this.resetForm();
+            let promise = this.postFormSubmission()
+                .then(
+                    result => this.resetForm(),
+                    error => alert("Error submitting form. Please try again.")
+                );
         }
     }
 
-    private resetForm() {
+    #resetForm() {
         this.responses = Object.assign({}, this.emptyForm);
+        this.renderForm();
+    }
+
+    #updateState() {
+        // Grabs the current form field data and populates the "responses" object.
+        // Could also accept the data as a paramter which would be better for testing.
+        this.renderForm();
+    }
+
+    #renderForm() {
+        // re-renders the entire form based on the current state in the "responses" object.
     }
 }
 
